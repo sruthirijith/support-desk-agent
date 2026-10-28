@@ -7,6 +7,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
+from agent import run_agent
+
 load_dotenv()
 
 app = FastAPI(title="Support Desk Agent")
@@ -58,3 +60,15 @@ def triage(message: Message):
         return triage_chain.invoke({"text": message.text})
     except Exception as exc:  # LLM/network/quota errors
         raise HTTPException(status_code=502, detail=f"LLM call failed: {exc}")
+
+
+class ChatReply(BaseModel):
+    reply: str
+
+
+@app.post("/chat", response_model=ChatReply)
+def chat(message: Message):
+    try:
+        return {"reply": run_agent(message.text)}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Agent failed: {exc}")
