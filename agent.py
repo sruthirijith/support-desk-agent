@@ -7,14 +7,15 @@ from langchain_core.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from db import create_ticket, get_order
+from rag import search_faq_text
 
 load_dotenv()
 
 llm = ChatGoogleGenerativeAI(
     model=os.getenv("GEMINI_MODEL", "gemini-flash-latest"),
     temperature=0,
-    timeout=30,
-    max_retries=2,
+    timeout=60,
+    max_retries=3,
 )
 
 
@@ -38,17 +39,27 @@ def create_support_ticket(order_id: str, issue: str) -> str:
     return f"Ticket #{ticket_id} created for order {order_id.strip().upper()}."
 
 
+@tool
+def search_faq(question: str) -> str:
+    """Search the company FAQ for policies: returns, refunds, shipping times,
+    cancellations, delayed orders and support hours."""
+    return search_faq_text(question)
+
+
 SYSTEM_PROMPT = (
     "You are a polite customer support assistant. "
     "If the customer asks about an order, use the lookup_order tool with their "
     "order ID. If they haven't given an order ID, ask for it. "
+    "For policy questions (returns, refunds, shipping, cancellations, support "
+    "hours) use the search_faq tool and answer only from what it returns; if the "
+    "FAQ doesn't cover it, say you don't know. "
     "If an order is delayed, apologise and offer to create a support ticket; "
     "create it with create_support_ticket only after the customer agrees. "
     "Only state facts that come from the tools; never guess order details. "
     "Keep replies short and friendly."
 )
 
-agent = create_agent(llm, tools=[lookup_order, create_support_ticket], system_prompt=SYSTEM_PROMPT)
+agent = create_agent(llm, tools=[lookup_order, create_support_ticket, search_faq], system_prompt=SYSTEM_PROMPT)
 
 
 def _to_text(content) -> str:
