@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langgraph.checkpoint.memory import InMemorySaver
 
 from db import create_ticket, get_order
 from rag import search_faq_text
@@ -59,7 +60,13 @@ SYSTEM_PROMPT = (
     "Keep replies short and friendly."
 )
 
-agent = create_agent(llm, tools=[lookup_order, create_support_ticket, search_faq], system_prompt=SYSTEM_PROMPT)
+# The checkpointer saves each conversation's messages, keyed by thread_id
+agent = create_agent(
+    llm,
+    tools=[lookup_order, create_support_ticket, search_faq],
+    system_prompt=SYSTEM_PROMPT,
+    checkpointer=InMemorySaver(),
+)
 
 
 def _to_text(content) -> str:
@@ -72,8 +79,12 @@ def _to_text(content) -> str:
     )
 
 
-def run_agent(user_message: str) -> str:
-    result = agent.invoke({"messages": [{"role": "user", "content": user_message}]})
+def run_agent(user_message: str, session_id: str = "default") -> str:
+    config = {"configurable": {"thread_id": session_id}}
+    result = agent.invoke(
+        {"messages": [{"role": "user", "content": user_message}]},
+        config,
+    )
     return _to_text(result["messages"][-1].content)
 
 

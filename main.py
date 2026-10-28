@@ -66,9 +66,14 @@ class ChatReply(BaseModel):
     reply: str
 
 
+class ChatRequest(BaseModel):
+    text: str = Field(..., min_length=1)
+    session_id: str = "default"
+
+
 @app.post("/chat", response_model=ChatReply)
-def chat(message: Message):
+def chat(message: ChatRequest):
     try:
-        return {"reply": run_agent(message.text)}
+        return {"reply": run_agent(message.text, message.session_id)}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Agent failed: {exc}")
