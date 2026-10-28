@@ -21,6 +21,20 @@ def get_order(order_id: str) -> dict | None:
     return row
 
 
+def create_ticket(order_id: str, issue: str) -> int:
+    """Save a support ticket and return its ticket_id."""
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+        row = conn.execute(
+            """
+            INSERT INTO tickets (order_id, issue)
+            VALUES (%s, %s)
+            RETURNING ticket_id
+            """,
+            (order_id.strip().upper(), issue),
+        ).fetchone()
+    return row[0]
+
+
 if __name__ == "__main__":
     # Quick manual test: python db.py
     print(get_order("ORD-1002"))
